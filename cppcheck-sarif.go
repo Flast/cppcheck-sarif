@@ -46,11 +46,14 @@ type cppResults struct {
 }
 
 func main() {
+	outfile := flag.String("output", "", "Output SARIF file name")
+
 	flag.Parse()
 
 	infile := flag.Arg(0)
 
 	var input io.Reader = os.Stdin
+	var output io.Writer = os.Stdout
 
 	if infile != "" {
 		file, err := os.Open(infile)
@@ -61,6 +64,17 @@ func main() {
 		defer file.Close()
 
 		input = file
+	}
+
+	if *outfile != "" {
+		file, err := os.OpenFile(*outfile, os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			fmt.Fprint(os.Stderr, err)
+			return
+		}
+		defer file.Close()
+
+		output = file
 	}
 
 	bytes, err := io.ReadAll(input)
@@ -81,5 +95,5 @@ func main() {
 		return
 	}
 
-	fmt.Print(string(bytes))
+	fmt.Fprint(output, string(bytes))
 }
