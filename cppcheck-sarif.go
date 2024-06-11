@@ -58,8 +58,7 @@ func main() {
 	if infile != "" {
 		file, err := os.Open(infile)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			panic(err)
 		}
 		defer file.Close()
 
@@ -69,8 +68,7 @@ func main() {
 	if *outfile != "" {
 		file, err := os.OpenFile(*outfile, os.O_WRONLY|os.O_CREATE, 0644)
 		if err != nil {
-			fmt.Fprint(os.Stderr, err)
-			return
+			panic(err)
 		}
 		defer file.Close()
 
@@ -79,20 +77,17 @@ func main() {
 
 	bytes, err := io.ReadAll(input)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
-		return
+		panic(err)
 	}
 
 	var result cppResults
 	if err := xml.Unmarshal(bytes, &result); err != nil {
-		fmt.Fprint(os.Stderr, err)
-		return
+		panic(err)
 	}
 
 	bytes, err = xml.Marshal(&result)
 	if err != nil {
-		fmt.Fprint(os.Stderr, err)
-		return
+		panic(err)
 	}
 
 	fmt.Fprint(output, string(bytes))
