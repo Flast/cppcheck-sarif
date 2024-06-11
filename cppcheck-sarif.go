@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/xml"
 	"flag"
-	"fmt"
 	"io"
 	"os"
+	"strings"
+
+	"github.com/owenrumney/go-sarif/v2/sarif"
 )
 
 type cppLocation struct {
@@ -85,10 +87,41 @@ func main() {
 		panic(err)
 	}
 
-	bytes, err = xml.Marshal(&result)
+	report, err := sarif.New(sarif.Version210)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Fprint(output, string(bytes))
+	run := sarif.NewRunWithInformationURI("cppcheck", "https://cppcheck.sourceforge.io/")
+	run.Tool.Driver.SemanticVersion = &result.Cppcheck.Version
+
+	for _, err := range result.Errors.Errors {
+		run.AddRule(err.Id)
+
+		for _, loc := range err.Locations {
+			run.AddDistinctArtifact(loc.File)
+		}
+
+		result := run.CreateResultForRule(err.Id).
+			WithLevel(strings.ToLower(err.Severity)).
+			WithMessage(sarif.NewTextMessage(err.Msg))
+
+		for _, loc := range err.Locations {
+			region := sarif.NewRegion().
+				WithStartLine(loc.Line).
+				WithStartColumn(loc.Column)
+			if true || loc.Info != "" { // XXX
+				region.WithTextMessage(loc.Info)
+			}
+			result.AddLocation(
+				sarif.NewLocationWithPhysicalLocation(
+					sarif.NewPhysicalLocation().
+						WithArtifactLocation(sarif.NewSimpleArtifactLocation(loc.File)).
+						WithRegion(region)))
+		}
+	}
+
+	report.AddRun(run)
+
+	_ = report.PrettyWrite(output)
 }
