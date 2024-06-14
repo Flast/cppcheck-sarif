@@ -47,6 +47,24 @@ type cppResults struct {
 	Errors   cppErrors `xml:"errors"`
 }
 
+func mapSeverity(sev string) string {
+	switch sev {
+	case "error", "warning":
+		return sev
+	case "information":
+		return "note"
+	}
+	return "none"
+}
+
+func sanitizeColumn(col int) int {
+	if col == 0 {
+		return 1
+	} else {
+		return col
+	}
+}
+
 func main() {
 	outfile := flag.String("output", "", "Output SARIF file name")
 
@@ -96,21 +114,26 @@ func main() {
 	run.Tool.Driver.SemanticVersion = &result.Cppcheck.Version
 
 	for _, err := range result.Errors.Errors {
-		run.AddRule(err.Id)
+		if err.Id == "checkersReport" {
+			continue
+		}
+
+		run.AddRule(err.Id).
+			WithDescription(err.Id)
 
 		for _, loc := range err.Locations {
 			run.AddDistinctArtifact(loc.File)
 		}
 
 		result := run.CreateResultForRule(err.Id).
-			WithLevel(strings.ToLower(err.Severity)).
+			WithLevel(mapSeverity(strings.ToLower(err.Severity))).
 			WithMessage(sarif.NewTextMessage(err.Msg))
 
 		for _, loc := range err.Locations {
 			region := sarif.NewRegion().
 				WithStartLine(loc.Line).
-				WithStartColumn(loc.Column)
-			if true || loc.Info != "" { // XXX
+				WithStartColumn(sanitizeColumn(loc.Column))
+			if loc.Info != "" {
 				region.WithTextMessage(loc.Info)
 			}
 			result.AddLocation(
