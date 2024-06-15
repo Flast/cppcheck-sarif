@@ -24,7 +24,7 @@ runs:
       shell: bash
       run: |
         cd $GITHUB_ACTION_PATH
-        go build ./cppcheck-sarif
+        go build cppcheck-sarif
 
     - name: convert report
       shell: bash
