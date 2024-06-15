@@ -19,7 +19,7 @@ cppcheck-sarif -output report.sarif report.xml
 
 ## GitHub Action usage
 
-```
+```yaml
 name: cppcheck
 
 on:
