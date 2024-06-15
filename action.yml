@@ -1,0 +1,31 @@
+name: "cppcheck-sarif"
+author: Flast
+description: "Convert cppcheck xml report to sarif"
+
+inputs:
+  input:
+    description: "Input xml file name"
+    default: ""
+    required: true
+  output:
+    description: "Output sarif file name"
+    default: ""
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: install golang
+      uses: actions/setup-go@latest
+      with:
+        go-version: '^1.20'
+
+    - name: build cppcheck-sarif
+      shell: bash
+      run: |
+        cd $GITHUB_ACTION_PATH
+        go build ./cppcheck-sarif
+
+    - name: convert report
+      shell: bash
+      run: $GITHUB_ACTION_PATH/cppcheck-sarif ${{ inputs.input }} -output ${{ inputs.output }}
