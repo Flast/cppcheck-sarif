@@ -28,4 +28,4 @@ runs:
 
     - name: convert report
       shell: bash
-      run: $GITHUB_ACTION_PATH/cppcheck-sarif ${{ inputs.input }} -output ${{ inputs.output }}
+      run: $GITHUB_ACTION_PATH/cppcheck-sarif -output ${{ inputs.output }} ${{ inputs.input }}
