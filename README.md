@@ -53,3 +53,7 @@ jobs:
           sarif_file: report.sarif
           category: cppcheck
 ```
+
+## References
+
+- https://github.com/danmar/cppcheck/pull/4651
