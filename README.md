@@ -51,7 +51,7 @@ jobs:
       - run: |
           cppcheck --enable=all --xml --output-file=report.xml .
 
-      - uses: Flast/cppcheck-sarif@v1
+      - uses: Flast/cppcheck-sarif@v2
         with:
           input: report.xml
           output: report.sarif
