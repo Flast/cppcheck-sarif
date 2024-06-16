@@ -18,6 +18,7 @@ package main
 import (
 	"encoding/xml"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -62,6 +63,66 @@ type cppResults struct {
 	Errors   cppErrors `xml:"errors"`
 }
 
+func parseXml(run *sarif.Run, input io.Reader, ruleOnly bool) error {
+	bytes, err := io.ReadAll(input)
+	if err != nil {
+		return err
+	}
+
+	var result cppResults
+	if err := xml.Unmarshal(bytes, &result); err != nil {
+		return err
+	}
+
+	if result.Version != 2 {
+		return fmt.Errorf("unsupported result version")
+	}
+
+	if !ruleOnly {
+		run.Tool.Driver.SemanticVersion = &result.Cppcheck.Version
+	}
+
+	for _, err := range result.Errors.Errors {
+		if err.Id == "checkersReport" {
+			continue
+		}
+
+		if ruleOnly {
+			run.AddRule(err.Id).
+				WithShortDescription(sarif.NewMultiformatMessageString(err.Msg)).
+				WithFullDescription(sarif.NewMultiformatMessageString(err.Verbose))
+		} else {
+			if rule := run.AddRule(err.Id); rule.ShortDescription == nil {
+				rule.WithDescription(err.Id)
+			}
+
+			for _, loc := range err.Locations {
+				run.AddDistinctArtifact(loc.File)
+			}
+
+			result := run.CreateResultForRule(err.Id).
+				WithLevel(mapSeverity(strings.ToLower(err.Severity))).
+				WithMessage(sarif.NewTextMessage(err.Msg))
+
+			for _, loc := range err.Locations {
+				region := sarif.NewRegion().
+					WithStartLine(loc.Line).
+					WithStartColumn(sanitizeColumn(loc.Column))
+				if loc.Info != "" {
+					region.WithTextMessage(loc.Info)
+				}
+				result.AddLocation(
+					sarif.NewLocationWithPhysicalLocation(
+						sarif.NewPhysicalLocation().
+							WithArtifactLocation(sarif.NewSimpleArtifactLocation(loc.File)).
+							WithRegion(region)))
+			}
+		}
+	}
+
+	return nil
+}
+
 func mapSeverity(sev string) string {
 	switch sev {
 	case "error", "warning":
@@ -82,6 +143,7 @@ func sanitizeColumn(col int) int {
 
 func main() {
 	outfile := flag.String("output", "", "Output SARIF file name")
+	errfile := flag.String("errorlist", "errorlist.xml", "Error list file")
 
 	flag.Parse()
 
@@ -89,6 +151,7 @@ func main() {
 
 	var input io.Reader = os.Stdin
 	var output io.Writer = os.Stdout
+	var errorlist io.Reader = nil
 
 	if infile != "" {
 		file, err := os.Open(infile)
@@ -110,57 +173,28 @@ func main() {
 		output = file
 	}
 
-	bytes, err := io.ReadAll(input)
-	if err != nil {
-		panic(err)
+	if *errfile != "" {
+		file, err := os.Open(*errfile)
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+
+		errorlist = file
 	}
 
-	var result cppResults
-	if err := xml.Unmarshal(bytes, &result); err != nil {
+	run := sarif.NewRunWithInformationURI("cppcheck", "https://cppcheck.sourceforge.io/")
+
+	if err := parseXml(run, errorlist, true); err != nil {
 		panic(err)
 	}
-
-	if result.Version != 2 {
-		panic("unsupported result version")
+	if err := parseXml(run, input, false); err != nil {
+		panic(err)
 	}
 
 	report, err := sarif.New(sarif.Version210)
 	if err != nil {
 		panic(err)
-	}
-
-	run := sarif.NewRunWithInformationURI("cppcheck", "https://cppcheck.sourceforge.io/")
-	run.Tool.Driver.SemanticVersion = &result.Cppcheck.Version
-
-	for _, err := range result.Errors.Errors {
-		if err.Id == "checkersReport" {
-			continue
-		}
-
-		run.AddRule(err.Id).
-			WithDescription(err.Id)
-
-		for _, loc := range err.Locations {
-			run.AddDistinctArtifact(loc.File)
-		}
-
-		result := run.CreateResultForRule(err.Id).
-			WithLevel(mapSeverity(strings.ToLower(err.Severity))).
-			WithMessage(sarif.NewTextMessage(err.Msg))
-
-		for _, loc := range err.Locations {
-			region := sarif.NewRegion().
-				WithStartLine(loc.Line).
-				WithStartColumn(sanitizeColumn(loc.Column))
-			if loc.Info != "" {
-				region.WithTextMessage(loc.Info)
-			}
-			result.AddLocation(
-				sarif.NewLocationWithPhysicalLocation(
-					sarif.NewPhysicalLocation().
-						WithArtifactLocation(sarif.NewSimpleArtifactLocation(loc.File)).
-						WithRegion(region)))
-		}
 	}
 
 	report.AddRun(run)
