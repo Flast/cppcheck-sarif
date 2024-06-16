@@ -120,6 +120,10 @@ func main() {
 		panic(err)
 	}
 
+	if result.Version != 2 {
+		panic("unsupported result version")
+	}
+
 	report, err := sarif.New(sarif.Version210)
 	if err != nil {
 		panic(err)
