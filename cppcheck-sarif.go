@@ -93,9 +93,21 @@ func parseXml(run *sarif.Run, input io.Reader, ruleOnly bool) error {
 		}
 
 		if ruleOnly {
-			run.AddRule(err.Id).
+			rule := run.AddRule(err.Id).
 				WithShortDescription(sarif.NewMultiformatMessageString(err.Msg)).
 				WithFullDescription(sarif.NewMultiformatMessageString(err.Verbose))
+
+			prop := make(sarif.Properties)
+			if err.Inconclusive {
+				prop["inconclusive"] = err.Inconclusive
+			}
+			if err.CWE != 0 {
+				prop["cwe"] = err.CWE
+			}
+			if len(prop) != 0 {
+				rule.WithProperties(prop)
+			}
+
 		} else {
 			if rule := run.AddRule(err.Id); rule.ShortDescription == nil {
 				rule.WithDescription(err.Id)
