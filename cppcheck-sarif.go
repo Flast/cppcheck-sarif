@@ -16,6 +16,8 @@
 package main
 
 import (
+	"bytes"
+	_ "embed"
 	"encoding/xml"
 	"flag"
 	"fmt"
@@ -25,6 +27,9 @@ import (
 
 	"github.com/owenrumney/go-sarif/v2/sarif"
 )
+
+//go:embed errorlist.xml
+var defaultErrList []byte
 
 type cppLocation struct {
 	XMLName xml.Name `xml:"location"`
@@ -143,7 +148,7 @@ func sanitizeColumn(col int) int {
 
 func main() {
 	outfile := flag.String("output", "", "Output SARIF file name")
-	errfile := flag.String("errorlist", "errorlist.xml", "Error list file")
+	errfile := flag.String("errorlist", "", "Error list file")
 
 	flag.Parse()
 
@@ -151,7 +156,7 @@ func main() {
 
 	var input io.Reader = os.Stdin
 	var output io.Writer = os.Stdout
-	var errorlist io.Reader = nil
+	var errorlist io.Reader = bytes.NewReader(defaultErrList)
 
 	if infile != "" {
 		file, err := os.Open(infile)
