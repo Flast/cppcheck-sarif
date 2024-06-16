@@ -17,6 +17,14 @@ cppcheck --xml --output-file=report.xml .
 cppcheck-sarif -output report.sarif report.xml
 ```
 
+### Use errorlist.xml instead of embedded one
+
+```sh
+cppcheck --errorlist > errorlist.xml
+cppcheck --xml --output-file=report.xml .
+cppcheck-sarif -errorlist errorlist.xml -output report.sarif report.xml
+```
+
 ## GitHub Action usage
 
 ```yaml
