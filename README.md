@@ -64,4 +64,5 @@ jobs:
 
 ## References
 
+- https://trac.cppcheck.net/ticket/9972
 - https://github.com/danmar/cppcheck/pull/4651
